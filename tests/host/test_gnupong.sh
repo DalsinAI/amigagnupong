@@ -79,13 +79,14 @@ play 'aa' "$T/left.out"
 play 'kk' "$T/keys.out" -left j -right k
 [ "$(col "$T/keys.out")" = 42 ] && ok "-right k chooses another key" || bad "-right k: paddle at $(col "$T/keys.out")"
 
-# the ball falls while no key comes: 0.3 s is about six steps from row 5
-(cd "$T" && { sleep 0.3; printf q; sleep 0.2; } | timeout 30 ./pong > "$T/ball.out" 2>/dev/null) || true
-by=$(python3 "$HERE/vt.py" "$T/ball.out" | awk '/O/ && !/Game/ { print NR - 1; exit }')
-if [ -n "$by" ] && [ "$by" -gt 6 ]; then ok "the ball falls on the game's clock (row $by)"; else bad "the ball: row ${by:-none}"; python3 "$HERE/vt.py" "$T/ball.out"; fi
+# the ball falls while no key comes: 0.25 s is about five steps from row 5
+(cd "$T" && sleep 0.25 | timeout 30 ./pong > "$T/ball.out" 2>/dev/null) || true
+by=$(python3 "$HERE/vt.py" "$T/ball.out" | awk '/O/ { print NR - 1; exit }')
+if [ -n "$by" ] && [ "$by" -gt 6 ] && [ "$by" -lt 20 ]; then ok "the ball falls on the game's clock (row $by)"; else bad "the ball: row ${by:-none}"; python3 "$HERE/vt.py" "$T/ball.out"; fi
 want() { name=$1; out=$2; shift 2
     if python3 "$HERE/vt.py" "$out" "$@" > "$T/vt.txt"; then ok "$name"; else bad "$name"; cat "$T/vt.txt"; fi; }
-want "q: the score in the window until a key" "$T/ball.out" --want "End of Game - Your score: 0" --want "Press a key"
+play 'q' "$T/quit.out"
+want "q: the score in the window until a key" "$T/quit.out" --want "End of Game - Your score: 0" --want "Press a key"
 play 'pq' "$T/paused.out"
 if python3 "$HERE/vt.py" "$T/paused.out" | grep -q "End of Game"; then bad "p did not pause"; else ok "p pauses: q is not taken"; fi
 play 'ppq' "$T/unpaused.out"
