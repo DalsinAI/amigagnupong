@@ -1,0 +1,69 @@
+# Pong (gnupong) for GFOS (AmigaOS 3.2 with GFOpenUp), 68040/68060: Jeffrey
+# W. Starr's curses Pong (1999) in its own 80 x 24 console window. No SDL,
+# no ACGame, no GFOpenGPU.
+#
+#   make -f amiga/Makefile.amigaos -j4 UP=/path/to/gnupong [STOVE=...]
+#
+# UP is upstream's 0.14 release (package/gnupong.lock) with amiga/patches
+# applied (package/build-amiga.sh does both). STOVE is a GFOpenAmigaGCC
+# 16.2.0-open6 stove (prefix/ has the compilers, C and C++, and the NDK).
+# The game (C++) draws through amiga/curses.c (the part of ncurses it uses,
+# sent to the console as ANSI); its clock, a 10 ms wait for a key, is
+# curses' (amiga/pong_amiga.c: wgetch with a timeout, dos.library
+# WaitForChar); its bounce sound is ding.wav through datatypes.library
+# (amiga/compat_amiga.c); amiga/console_amiga.c opens the window.
+#
+# Output: build/amigaos/GnuPong/ (the drawer: GnuPong, ding.wav, ReadMe,
+# the licence, GlowIcons), build/amigaos/GnuPong.info and Install-GnuPong
+# beside them.
+
+UP      ?= ../gnupong
+VERSION ?= 0.14
+STOVE   ?= $(HOME)/AmiCradle/stoves/os32-gcc16-open6
+PREFIX  ?= $(STOVE)/prefix
+CC      = $(PREFIX)/bin/m68k-amigaos-gcc
+CXX     = $(PREFIX)/bin/m68k-amigaos-g++
+CPU     ?= -m68040 -msoft-float
+# -fno-tree-loop-distribute-patterns: GCC 16's loop miscompile.
+OPT     ?= -Os -fomit-frame-pointer -fno-tree-loop-distribute-patterns
+
+# Upstream is 1999 C++: cout without std:: (the prelude), main without a return.
+UPFLAGS = -noixemul $(OPT) $(CPU) -fpermissive -w -D__amigaos__ \
+          -include amiga/include/amiga_prelude.h -Iamiga/include -Iamiga
+MYFLAGS = -noixemul $(OPT) $(CPU) -std=gnu99 -Wall \
+          -DAMIGA_GAME_TITLE='"Pong $(VERSION)"' -Iamiga/include -Iamiga
+LDFLAGS = -noixemul $(CPU)
+
+BUILD   = build/amigaos
+OBJ     = $(BUILD)/obj
+OUT     = $(BUILD)/GnuPong
+
+PORT    = curses keys console_amiga pong_amiga compat_amiga
+
+all: $(OUT)/GnuPong package
+
+$(OBJ)/up/pong.o: $(UP)/pong.cpp $(wildcard $(UP)/*.h amiga/include/*.h)
+	@mkdir -p $(dir $@)
+	$(CXX) $(UPFLAGS) -c -o $@ $<
+
+$(OBJ)/port/%.o: amiga/%.c $(wildcard amiga/*.h amiga/include/*.h)
+	@mkdir -p $(dir $@)
+	$(CC) $(MYFLAGS) -c -o $@ $<
+
+$(OUT)/GnuPong: $(OBJ)/up/pong.o $(PORT:%=$(OBJ)/port/%.o)
+	@mkdir -p $(OUT)
+	$(CXX) $(LDFLAGS) -o $@ $^
+
+package: $(OUT)/GnuPong AMIGA_PORT.md
+	cp $(UP)/ding.wav $(OUT)/
+	cp AMIGA_PORT.md $(OUT)/ReadMe
+	cp $(UP)/COPYING $(OUT)/COPYING.txt
+	cp amiga/icons/GnuPong.info amiga/icons/ReadMe.info $(OUT)/
+	cp amiga/icons/ReadMe.info $(OUT)/COPYING.txt.info
+	cp amiga/icons/GnuPong-drawer.info $(BUILD)/GnuPong.info
+	cp amiga/Install-GnuPong amiga/Install-GnuPong.info $(BUILD)/
+
+clean:
+	rm -rf $(BUILD)
+
+.PHONY: all package clean
