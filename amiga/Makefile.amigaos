@@ -52,7 +52,7 @@ $(OBJ)/port/%.o: amiga/%.c $(wildcard amiga/*.h amiga/include/*.h)
 
 $(OUT)/GnuPong: $(OBJ)/up/pong.o $(PORT:%=$(OBJ)/port/%.o)
 	@mkdir -p $(OUT)
-	$(CXX) $(LDFLAGS) -o $@ $^
+	$(CXX) $(LDFLAGS) -o $@ $^ -lpthread
 
 package: $(OUT)/GnuPong AMIGA_PORT.md
 	cp $(UP)/ding.wav $(OUT)/
