@@ -1,0 +1,47 @@
+diff -ru a/event.h b/event.h
+--- a/event.h
++++ b/event.h
+@@ -99,7 +99,11 @@
+ 	      ball->bounce( rnd->next(3) + 7 );
+ 	      event->incrScore();
+ 	      if((timetick % tick == 2) && SOUND)
++#ifdef __amigaos__
++		amiga_ding(); // PROGDIR:ding.wav through its datatype
++#else
+ 		system( "play ding.wav" );
++#endif
+ 	    }
+ 	  else
+ 	    {
+diff -ru a/pong.cpp b/pong.cpp
+--- a/pong.cpp
++++ b/pong.cpp
+@@ -39,6 +39,9 @@
+ 
+ int kbhit(void)
+ {
++#ifdef __amigaos__
++  return amiga_kbhit(); // curses waits the 10 ms for a key
++#else
+   // For explanations of the code, see the select() man page
+ 
+   fd_set rfds;
+@@ -58,6 +61,7 @@
+   else
+     return false;
+   // Don't rely on the value of tv now!
++#endif
+ }
+ 
+ int pausegame()
+@@ -115,6 +119,10 @@
+     }
+   while( ok(rnd, ball, paddle, event) );
+ 
++#ifdef __amigaos__
++  amiga_game_over(event->getScore()); // the window closes as the game ends
++#endif
++
+   nocrmode();
+   echo();
+   endwin();

@@ -1,0 +1,7 @@
+# Upstream Pong (gnupong) 0.14 (Jeffrey W. Starr, 1999), from the games
+# archive on ibiblio (sunsite's Linux games/arcade); its only release.
+# Fetched at build time, never kept here, checked against its SHA-256.
+UP_URL=https://www.ibiblio.org/pub/micro/pc-stuff/Linux/games/arcade/gnupong-0.14.tar.gz
+UP_SHA256=e33d32a651e1345f2bdc0065455c215acaa2600050d21663dd7355af0c275186
+UP_VERSION=0.14
+PORT_VERSION=0.14-gfos1

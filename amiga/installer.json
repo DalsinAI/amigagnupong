@@ -1,0 +1,14 @@
+{
+  "name": "GnuPong",
+  "version": "0.14-gfos1",
+  "drawer": "GnuPong",
+  "program": "GnuPong",
+  "cpu": "68040",
+  "fpu": false,
+  "space": 900000,
+  "modules": [],
+  "parent": "Work:Games",
+  "badge": "icons/art/gnupong.png",
+  "keep": [],
+  "script": "Install-GnuPong"
+}
