@@ -2,7 +2,7 @@
 # Host tests for the Amiga port of Pong (gnupong): upstream's game
 # (amiga/patches applied, __amigaos__ set, so the Amiga's code paths are
 # the ones built) with amiga/curses.c over a plain terminal
-# (tests/host/console_host.c), played with scripted keys; tests/host/vt.py
+# (tests/host/console_host.c), played with scripted keys; GFOpenCurses' tests/host/vt.py
 # reads back the screen as the Amiga's console would show it:
 #  - ungetch: a key given back comes first, flushinp drops it;
 #  - the paddle (###) at the bottom, in the middle; l and a move it, and
@@ -19,6 +19,8 @@ set -eu
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$HERE/../.." && pwd)
 UP=${UP:?UP=upstream source}
+GC=${GFOPENCURSES:?GFOPENCURSES=gfopencurses checkout}
+VT=$GC/tests/host/vt.py
 CC=${HOSTCC:-cc}
 CXX=${HOSTCXX:-c++}
 command -v "$CC" >/dev/null 2>&1 && command -v "$CXX" >/dev/null 2>&1 ||
@@ -27,13 +29,15 @@ T=$(mktemp -d "${TMPDIR:-/tmp}/gnupong-host.XXXXXX")
 [ -n "${TEST_KEEP:-}" ] || trap 'rm -rf "$T"' EXIT INT TERM
 cd "$ROOT"
 
-MINE="-std=gnu99 -Wall -Werror -D_XOPEN_SOURCE=600 -D_DEFAULT_SOURCE -Iamiga/include -Iamiga"
-for f in curses keys pong_amiga; do $CC $MINE -c -o "$T/$f.o" "amiga/$f.c"; done
-$CC $MINE -c -o "$T/con.o" tests/host/console_host.c
+MINE="-std=gnu99 -Wall -Werror -D_XOPEN_SOURCE=600 -D_DEFAULT_SOURCE -I$GC/include -Iamiga/include -Iamiga"
+for f in curses keys; do $CC $MINE -c -o "$T/$f.o" "$GC/src/$f.c"; done
+for f in pong_amiga; do $CC $MINE -c -o "$T/$f.o" "amiga/$f.c"; done
+$CC $MINE -c -o "$T/con.o" "$GC/src/console_host.c"
+$CC $MINE -c -o "$T/screen.o" amiga/screen.c
 $CC $MINE -c -o "$T/ding.o" tests/host/ding_host.c
-$CXX -fpermissive -w -D__amigaos__ -include amiga/include/amiga_prelude.h -Iamiga/include -Iamiga \
+$CXX -fpermissive -w -D__amigaos__ -include amiga/include/amiga_prelude.h -I$GC/include -Iamiga/include -Iamiga \
     -c -o "$T/pong.o" "$UP/pong.cpp"
-$CXX -o "$T/pong" "$T/pong.o" "$T/curses.o" "$T/keys.o" "$T/pong_amiga.o" "$T/con.o" "$T/ding.o"
+$CXX -o "$T/pong" "$T/pong.o" "$T/curses.o" "$T/keys.o" "$T/pong_amiga.o" "$T/con.o" "$T/screen.o" "$T/ding.o"
 
 fails=0
 ok() { echo "ok   $1"; }
@@ -56,7 +60,7 @@ int main(void)
 	return bad;
 }
 C
-$CC $MINE -o "$T/units" "$T/units.c" "$T/curses.o" "$T/keys.o" "$T/con.o"
+$CC $MINE -o "$T/units" "$T/units.c" "$T/curses.o" "$T/keys.o" "$T/con.o" "$T/screen.o"
 if sleep 1 | "$T/units" > "$T/units.out"; then ok "ungetch: last in, first out; flushinp drops"; else bad "ungetch"; cat "$T/units.out"; fi
 
 play() {	# keys (printf format), output, [args]
@@ -64,7 +68,7 @@ play() {	# keys (printf format), output, [args]
     (cd "$T" && printf "$keys" | timeout 30 ./pong "$@" > "$out" 2> "$out.err")
 }
 row() {		# output, row (1-based): that line of the screen
-    python3 "$HERE/vt.py" "$1" | sed -n "${2}p"
+    python3 "$VT" "$1" | sed -n "${2}p"
 }
 col() {		# the column (0-based) of the paddle's middle on row 23
     row "$1" 23 | awk '{ i = index($0, "###"); print i ? i : -1 }'
@@ -81,14 +85,14 @@ play 'kk' "$T/keys.out" -left j -right k
 
 # the ball falls while no key comes: 0.25 s is about five steps from row 5
 (cd "$T" && sleep 0.25 | timeout 30 ./pong > "$T/ball.out" 2>/dev/null) || true
-by=$(python3 "$HERE/vt.py" "$T/ball.out" | awk '/O/ { print NR - 1; exit }')
-if [ -n "$by" ] && [ "$by" -gt 6 ] && [ "$by" -lt 20 ]; then ok "the ball falls on the game's clock (row $by)"; else bad "the ball: row ${by:-none}"; python3 "$HERE/vt.py" "$T/ball.out"; fi
+by=$(python3 "$VT" "$T/ball.out" | awk '/O/ { print NR - 1; exit }')
+if [ -n "$by" ] && [ "$by" -gt 6 ] && [ "$by" -lt 20 ]; then ok "the ball falls on the game's clock (row $by)"; else bad "the ball: row ${by:-none}"; python3 "$VT" "$T/ball.out"; fi
 want() { name=$1; out=$2; shift 2
-    if python3 "$HERE/vt.py" "$out" "$@" > "$T/vt.txt"; then ok "$name"; else bad "$name"; cat "$T/vt.txt"; fi; }
+    if python3 "$VT" "$out" "$@" > "$T/vt.txt"; then ok "$name"; else bad "$name"; cat "$T/vt.txt"; fi; }
 play 'q' "$T/quit.out"
 want "q: the score in the window until a key" "$T/quit.out" --want "End of Game - Your score: 0" --want "Press a key"
 play 'pq' "$T/paused.out"
-if python3 "$HERE/vt.py" "$T/paused.out" | grep -q "End of Game"; then bad "p did not pause"; else ok "p pauses: q is not taken"; fi
+if python3 "$VT" "$T/paused.out" | grep -q "End of Game"; then bad "p did not pause"; else ok "p pauses: q is not taken"; fi
 play 'ppq' "$T/unpaused.out"
 want "p again goes on: q ends it" "$T/unpaused.out" --want "End of Game"
 play '' "$T/dump.out" -dumpkeys

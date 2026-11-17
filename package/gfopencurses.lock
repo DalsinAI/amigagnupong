@@ -1,0 +1,3 @@
+# GFOpenCurses, the shared console curses (DalsinAI/gfopencurses), fetched at build time.
+GFOPENCURSES_URL=https://github.com/DalsinAI/gfopencurses
+GFOPENCURSES_COMMIT=17228cd0d4dc50964ef0198a00c9f89d7a24aa69
