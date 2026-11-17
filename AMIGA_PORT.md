@@ -21,14 +21,14 @@ without one the game is silent.
 How it was ported
 -----------------
 The game (C++) is built from upstream's release as it is, with our
-curses (amiga/curses.c, shared with our other console ports), which
-gains ungetch() and C++ linkage here. Upstream's clock is kbhit(): a
+curses, GFOpenCurses (DalsinAI/gfopencurses, the library our console
+ports share). Upstream's clock is kbhit(): a
 10 ms select() on the terminal for a key; amiga/pong_amiga.c waits those
 10 ms through curses (wgetch with a timeout, dos.library WaitForChar) and
 gives the key back for the getch() that follows. The bounce's sound,
 sox's play on Unix, is ding.wav loaded once as a datatypes sound object
-and triggered (amiga/compat_amiga.c). amiga/console_amiga.c opens the
-window and reads the keys (amiga/keys.c).
+and triggered (amiga/compat_amiga.c). GFOpenCurses opens the window and
+reads the keys.
 
 The one patch, amiga/patches/0001: kbhit() through curses, the sound
 through its datatype, and the score shown in the window before it closes

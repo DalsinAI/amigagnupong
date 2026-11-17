@@ -7,17 +7,20 @@
 # UP is upstream's 0.14 release (package/gnupong.lock) with amiga/patches
 # applied (package/build-amiga.sh does both). STOVE is a GFOpenAmigaGCC
 # 16.2.0-open6 stove (prefix/ has the compilers, C and C++, and the NDK).
-# The game (C++) draws through amiga/curses.c (the part of ncurses it uses,
-# sent to the console as ANSI); its clock, a 10 ms wait for a key, is
-# curses' (amiga/pong_amiga.c: wgetch with a timeout, dos.library
-# WaitForChar); its bounce sound is ding.wav through datatypes.library
-# (amiga/compat_amiga.c); amiga/console_amiga.c opens the window.
+# The game (C++) draws through GFOpenCurses (DalsinAI/gfopencurses, at the
+# commit package/gfopencurses.lock names, built first: GFOPENCURSES is its
+# checkout), which opens the window and sends the screen as ANSI; its
+# clock, a 10 ms wait for a key, is curses' (amiga/pong_amiga.c: wgetch
+# with a timeout, dos.library WaitForChar); its bounce sound is ding.wav
+# through datatypes.library (amiga/compat_amiga.c); amiga/screen.c titles
+# the window.
 #
 # Output: build/amigaos/GnuPong/ (the drawer: GnuPong, ding.wav, ReadMe,
 # the licence, GlowIcons), build/amigaos/GnuPong.info and Install-GnuPong
 # beside them.
 
 UP      ?= ../gnupong
+GFOPENCURSES ?= ../gfopencurses
 VERSION ?= 0.14
 STOVE   ?= $(HOME)/AmiCradle/stoves/os32-gcc16-open6
 PREFIX  ?= $(STOVE)/prefix
@@ -29,16 +32,16 @@ OPT     ?= -Os -fomit-frame-pointer -fno-tree-loop-distribute-patterns
 
 # Upstream is 1999 C++: cout without std:: (the prelude), main without a return.
 UPFLAGS = -noixemul $(OPT) $(CPU) -fpermissive -w -D__amigaos__ \
-          -include amiga/include/amiga_prelude.h -Iamiga/include -Iamiga
+          -include amiga/include/amiga_prelude.h -I$(GFOPENCURSES)/include -Iamiga/include -Iamiga
 MYFLAGS = -noixemul $(OPT) $(CPU) -std=gnu99 -Wall \
-          -DAMIGA_GAME_TITLE='"Pong $(VERSION)"' -Iamiga/include -Iamiga
+          -DGAME_TITLE='"Pong $(VERSION)"' -I$(GFOPENCURSES)/include -Iamiga/include -Iamiga
 LDFLAGS = -noixemul $(CPU)
 
 BUILD   = build/amigaos
 OBJ     = $(BUILD)/obj
 OUT     = $(BUILD)/GnuPong
 
-PORT    = curses keys console_amiga pong_amiga compat_amiga
+PORT    = pong_amiga compat_amiga screen
 
 all: $(OUT)/GnuPong package
 
@@ -46,13 +49,13 @@ $(OBJ)/up/pong.o: $(UP)/pong.cpp $(wildcard $(UP)/*.h amiga/include/*.h)
 	@mkdir -p $(dir $@)
 	$(CXX) $(UPFLAGS) -c -o $@ $<
 
-$(OBJ)/port/%.o: amiga/%.c $(wildcard amiga/*.h amiga/include/*.h)
+$(OBJ)/port/%.o: amiga/%.c $(wildcard amiga/include/*.h)
 	@mkdir -p $(dir $@)
 	$(CC) $(MYFLAGS) -c -o $@ $<
 
 $(OUT)/GnuPong: $(OBJ)/up/pong.o $(PORT:%=$(OBJ)/port/%.o)
 	@mkdir -p $(OUT)
-	$(CXX) $(LDFLAGS) -o $@ $^
+	$(CXX) $(LDFLAGS) -o $@ $^ -L$(GFOPENCURSES)/lib -lgfopencurses
 
 package: $(OUT)/GnuPong AMIGA_PORT.md
 	cp $(UP)/ding.wav $(OUT)/
